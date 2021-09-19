@@ -18,8 +18,12 @@ type Funcionario struct {
 	Email        string `json:"email"`
 	Cpf          int    `json:"cpf"`
 	Salario      string `json:"salario"`
-	Idade        int    `json"idade"`
+	Idade        int    `json:"idade"`
 	Departamento int    `json:"departamento"`
+}
+
+type Response struct {
+	Id int `json:"id"`
 }
 
 func RequestsHandler(w http.ResponseWriter, r *http.Request) {
@@ -31,10 +35,47 @@ func RequestsHandler(w http.ResponseWriter, r *http.Request) {
 		FuncionarioPorId(w, r, id)
 	case r.Method == "GET":
 		BuscaTodosFuncionarios(w, r)
+	case r.Method == "POST":
+		CadastraFuncionario(w, r)
 	default:
 		w.WriteHeader(http.StatusNotFound)
 		fmt.Fprintf(w, "Endpoint não localizado")
 	}
+
+}
+
+func CadastraFuncionario(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+
+	var f Funcionario
+	var resp Response
+
+	err := decoder.Decode(&f)
+	if err != nil {
+		panic(err)
+	}
+
+	/*log.Println(f.Nome)
+	log.Println(f.Idade)
+	log.Println(f.Email)*/
+
+	db, err := sql.Open("mysql", "root:@/unip_lpbd")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+
+	tx, _ := db.Begin()
+	stmt, _ := tx.Prepare("INSERT INTO funcionario (nm_funcionario, ds_email_funcionario, cd_cpf_funcionario, vl_salario_funcionario,  idade_funcionario, cd_departamento) VALUES (?,?,?,?,?,?)")
+
+	res, _ := stmt.Exec(f.Nome, f.Email, f.Cpf, f.Salario, f.Idade, f.Departamento)
+	id, _ := res.LastInsertId()
+
+	resp.Id = int(id)
+
+	json, _ := json.Marshal(resp)
+	w.Header().Set("Content-Type", "applicantion/json")
+	fmt.Fprint(w, string(json))
 
 }
 
